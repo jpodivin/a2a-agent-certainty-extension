@@ -31,7 +31,7 @@ def test_is_supported(supported, certainty_extension):
         default_output_modes=[],
         description="Mock agent",
         name="mock_agent",
-        url="www.mock_agent.com",
+        documentation_url="www.mock_agent.com",
         version="0.0.1",
         skills=[],
     )
@@ -166,5 +166,5 @@ def test_activate(requested, certainty_extension):
         )
         assert EXTENSION_URI in context.requested_extensions
     else:
-        context = RequestContext()
-    assert requested == certainty_extension.activate(context)
+        context = RequestContext(call_context=ServerCallContext())
+    assert requested == certainty_extension.is_requested(context)

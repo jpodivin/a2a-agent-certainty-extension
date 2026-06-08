@@ -28,7 +28,7 @@ def mock_agent_message():
             context_id="123",
             message_id="abc",
             parts=[],
-            role=Role.agent,
+            role=Role.ROLE_AGENT,
             metadata=metadata,
             extensions=extensions,
         )

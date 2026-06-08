@@ -4,7 +4,7 @@ from uuid import uuid4
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events.event_queue import EventQueue
 from a2a.server.tasks.task_updater import TaskUpdater
-from a2a.types import Message, Part, Role, TextPart, DataPart
+from a2a.types import Message, Part, Role
 
 from .extension import CertaintyExtension, CertaintyTypes
 
@@ -46,19 +46,14 @@ class CertaintyAgentExecutor(AgentExecutor):
         response = Message(
             context_id=context.context_id,
             message_id=str(uuid4()),
-            role=Role.agent,
+            role=Role.ROLE_AGENT,
             parts=[
-                Part(root=TextPart(text=llm_response)),
-                Part(
-                    root=DataPart(
-                        data={"certainty": certainty, "certainty_type": certainty_type}
-                    )
-                ),
+                Part(text=llm_response),
             ],
             metadata={},
         )
 
-        self.certainty_extension.add_if_activated(
+        self.certainty_extension.add_if_requested(
             response,
             context=context,
             certainty_type=certainty_type,

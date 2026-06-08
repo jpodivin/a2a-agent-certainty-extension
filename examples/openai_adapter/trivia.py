@@ -8,7 +8,7 @@ import math
 from uuid import uuid4
 from openai import AsyncOpenAI
 
-from a2a.types import Message, Role, Part, TextPart, DataPart, MessageSendParams
+from a2a.types import Message, Role, Part
 from a2a.server.agent_execution import RequestContext
 from a2a.server.events.event_queue import EventQueue
 
@@ -110,8 +110,8 @@ async def main(certainty_type: CertaintyTypes):
     event_queue = EventQueue()
 
     user_msg = Message(
-        role=Role.user,
-        parts=[Part(root=TextPart(text="Tell me something interesting!"))],
+        role=Role.ROLE_USER,
+        parts=[Part(text="Tell me something interesting!")],
         message_id=str(uuid4()),
     )
 
