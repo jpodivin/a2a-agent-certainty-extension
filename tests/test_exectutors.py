@@ -1,7 +1,7 @@
 import pytest
 
 from a2a.server.agent_execution import RequestContext
-from a2a.types import Message, Role, MessageSendParams
+from a2a.types import Message, Role, SendMessageRequest
 from a2a.server.context import ServerCallContext
 
 
@@ -24,7 +24,7 @@ async def test_execute_with_certainty_activated(
     mock_event_queue,
     mock_agent_message,
 ):
-    message_params = MessageSendParams(message=mock_agent_message())
+    message_params = SendMessageRequest(message=mock_agent_message())
     # Setup: Extension is requested
     context = RequestContext(
         context_id="test-session",
@@ -50,8 +50,8 @@ async def test_execute_with_certainty_activated(
     sent_message = mock_event_queue.enqueue_event.call_args[0][0]
 
     assert isinstance(sent_message, Message)
-    assert sent_message.role == Role.agent
-    assert sent_message.parts[0].root.text == "This is the agent response."
+    assert sent_message.role == Role.ROLE_AGENT
+    assert sent_message.parts[0].text == "This is the agent response."
 
     # Check that certainty metadata was added because it was activated
     from a2a_agent_certainty_extension.extension import (
@@ -76,7 +76,7 @@ async def test_execute_without_certainty_activated(
     mock_event_queue,
     mock_agent_message,
 ):
-    message_params = MessageSendParams(message=mock_agent_message())
+    message_params = SendMessageRequest(message=mock_agent_message())
     # Setup: Extension is NOT requested
     context = RequestContext(
         context_id="test-session",
@@ -108,7 +108,7 @@ async def test_execute_no_message_in_context(
     executor, mock_event_queue, mock_llm_adapter
 ):
     # Setup: Context has no message (e.g., initial connection or malformed request)
-    context = RequestContext(context_id="empty-context")
+    context = RequestContext(call_context=ServerCallContext(requested_extensions=set()), context_id="empty-context")
 
     # Execution
     await executor.execute(context, mock_event_queue)
@@ -121,7 +121,7 @@ async def test_execute_no_message_in_context(
 @pytest.mark.asyncio
 async def test_cancel_with_task_id(executor, mock_event_queue):
     # Setup: Context with a task ID to cancel
-    context = RequestContext(context_id="test-session", task_id="task-123")
+    context = RequestContext(call_context=ServerCallContext(requested_extensions=set()), context_id="test-session", task_id="task-123")
 
     # Execution
     await executor.cancel(context, mock_event_queue)

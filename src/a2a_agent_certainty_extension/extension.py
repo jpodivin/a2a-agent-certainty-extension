@@ -44,8 +44,8 @@ class CertaintyExtension:
     def get_certainty(self, struct: Message | Artifact) -> Optional[Dict[str, float]]:
         """Return certainty if it is set in the structure"""
         if struct.metadata and self.has_certainty(struct):
-            certainty_type = struct.metadata.get(CERTAINTY_FIELD_TYPE)
-            certainty_value = struct.metadata.get(CERTAINTY_FIELD_VALUE)
+            certainty_type = struct.metadata[CERTAINTY_FIELD_TYPE]
+            certainty_value = struct.metadata[CERTAINTY_FIELD_VALUE]
 
             if isinstance(certainty_type, str) and isinstance(certainty_value, float):
                 if 0 <= certainty_value <= 1:
@@ -61,12 +61,10 @@ class CertaintyExtension:
             uri=URI, description="Adds certainty to messages and artifacts"
         )
 
-    def activate(self, context: RequestContext) -> bool:
-        """Activate certainty extension if requested"""
-        if URI in context.requested_extensions:
-            context.add_activated_extension(URI)
-            return True
-        return False
+    def is_requested(self, context: RequestContext) -> bool:
+        """Return true if client requested this extension for the call.
+        """
+        return URI in context.requested_extensions
 
     def add_certainty(
         self,
@@ -84,26 +82,21 @@ class CertaintyExtension:
         # Do not change certainty if it is already set
         if self.has_certainty(struct):
             return
-        if struct.metadata is None:
-            struct.metadata = {}
 
         struct.metadata[CERTAINTY_FIELD_VALUE] = certainty_value
         struct.metadata[CERTAINTY_FIELD_TYPE] = certainty_type
 
-        if struct.extensions is None:
-            struct.extensions = []
-
         struct.extensions.append(URI)
 
-    def add_if_activated(
+    def add_if_requested(
         self,
         struct: Message | Artifact,
         context: RequestContext,
         certainty_type: CertaintyTypes,
         certainty_value: float,
     ) -> None:
-        """Add certainty to struct only if it is activated"""
-        if self.activate(context):
+        """Add certainty to struct only if it is requested"""
+        if self.is_requested(context):
             self.add_certainty(
                 struct, certainty_type=certainty_type, certainty_value=certainty_value
             )
