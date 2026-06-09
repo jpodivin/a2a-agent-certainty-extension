@@ -58,20 +58,20 @@ def test_has_certainty(metadata, certainty_extension, mock_agent_message):
         assert not certainty_extension.has_certainty(agent_message)
 
 
-@pytest.mark.parametrize("certainty_type", list(CertaintyTypes))
-@pytest.mark.parametrize("certainty_value", [0.0, 0.2, 0.9, 1.0])
+@pytest.mark.parametrize("expected_certainty_type", list(CertaintyTypes))
+@pytest.mark.parametrize("expected_certainty_value", [0.0, 0.2, 0.9, 1.0])
 def test_get_certainty(
-    certainty_type, certainty_value, certainty_extension, mock_agent_message
+    expected_certainty_type, expected_certainty_value, certainty_extension, mock_agent_message
 ):
 
     agent_message = mock_agent_message(
-        {CERTAINTY_FIELD_TYPE: certainty_type, CERTAINTY_FIELD_VALUE: certainty_value}
+        {CERTAINTY_FIELD_TYPE: expected_certainty_type, CERTAINTY_FIELD_VALUE: expected_certainty_value}
     )
 
-    certainty_data = certainty_extension.get_certainty(agent_message)
+    certainty_type, certainty_value = certainty_extension.get_certainty(agent_message)
 
-    assert certainty_type in certainty_data
-    assert certainty_data[certainty_type] == certainty_value
+    assert certainty_type == expected_certainty_type
+    assert certainty_value == expected_certainty_value
 
 
 @pytest.mark.parametrize("certainty_type", list(CertaintyTypes))
