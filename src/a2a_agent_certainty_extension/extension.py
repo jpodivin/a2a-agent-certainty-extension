@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional
 from enum import StrEnum
 
 from a2a.server.agent_execution import RequestContext
@@ -41,7 +41,7 @@ class CertaintyExtension:
             )
         return False
 
-    def get_certainty(self, struct: Message | Artifact) -> Optional[Dict[str, float]]:
+    def get_certainty(self, struct: Message | Artifact) -> Optional[tuple[str, float]]:
         """Return certainty if it is set in the structure"""
         if struct.metadata and self.has_certainty(struct):
             certainty_type = struct.metadata[CERTAINTY_FIELD_TYPE]
@@ -49,7 +49,7 @@ class CertaintyExtension:
 
             if isinstance(certainty_type, str) and isinstance(certainty_value, float):
                 if 0 <= certainty_value <= 1:
-                    return {certainty_type: certainty_value}
+                    return (certainty_type, certainty_value)
                 raise ValueError(
                     f"Invalid certainty value: {certainty_value}, received."
                 )

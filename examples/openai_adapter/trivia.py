@@ -8,15 +8,21 @@ import math
 from uuid import uuid4
 from openai import AsyncOpenAI
 
-from a2a.types import Message, Role, Part
+from a2a.types import Message, Role, Part, SendMessageRequest
 from a2a.server.agent_execution import RequestContext
-from a2a.server.events.event_queue import EventQueue
+from a2a.server.events.event_queue_v2 import EventQueueSource
+
+from a2a.server.context import ServerCallContext
 
 from a2a_agent_certainty_extension.executors import (
     LLMBackendAdapter,
     CertaintyAgentExecutor,
 )
-from a2a_agent_certainty_extension.extension import CertaintyTypes, CertaintyExtension
+from a2a_agent_certainty_extension.extension import (
+    CertaintyTypes,
+    CertaintyExtension,
+    URI,
+)
 
 MODEL_NAME = os.environ.get(
     "MODEL_NAME", "repos/logdetective/models/granite-4.0-h-tiny-Q8_0.gguf"
@@ -99,15 +105,16 @@ class OpenAITriviaAdapter(LLMBackendAdapter):
         return fact, self.certainty_type, c_score
 
 
-async def main(certainty_type: CertaintyTypes):
+async def main(requested_certainty_type: CertaintyTypes):
+
+    # Instantiate the extension
+    certainty_extension = CertaintyExtension()
 
     # Instantiate the adapter
-    adapter = OpenAITriviaAdapter(certainty_type)
+    adapter = OpenAITriviaAdapter(requested_certainty_type)
 
     # Create a message to trigger the agent
     print("Generating a trivia fact...\n")
-
-    event_queue = EventQueue()
 
     user_msg = Message(
         role=Role.ROLE_USER,
@@ -115,40 +122,40 @@ async def main(certainty_type: CertaintyTypes):
         message_id=str(uuid4()),
     )
 
-    context = RequestContext(request=MessageSendParams(message=user_msg))
-    executor = CertaintyAgentExecutor(
-        llm_backend_adapter=adapter, certainty_extension=CertaintyExtension()
+    context = RequestContext(
+        call_context=ServerCallContext(requested_extensions={URI}),
+        request=SendMessageRequest(message=user_msg),
     )
-    # Execute generate_with_certainty
+    executor = CertaintyAgentExecutor(
+        llm_backend_adapter=adapter, certainty_extension=certainty_extension
+    )
 
-    await executor.execute(context=context, event_queue=event_queue)
+    async with EventQueueSource() as event_queue:
+        # Execute generate_with_certainty
+        await executor.execute(context=context, event_queue=event_queue)
 
-    event = await event_queue.queue.get()
-    if not isinstance(event, Message):
-        raise TypeError("Retrieved event is not a Message object!")
+        event = await event_queue.dequeue_event()
+        event_queue.task_done()
+        if not isinstance(event, Message):
+            raise TypeError("Retrieved event is not a Message object!")
 
     reported_certainty = None
     response = None
-    reported_certainty_type = None
-
+    certainty_type = None
+    certainty_value = None
     for part in event.parts:
-        if isinstance(part.root, TextPart):
-            response = part.root.text
-        if isinstance(part.root, DataPart):
-            certainty_data = part.root.data
+        response = part.text
 
-            reported_certainty = certainty_data["certainty"]
-            reported_certainty_type = CertaintyTypes(certainty_data["certainty_type"])
-    if not (reported_certainty_type and reported_certainty and response):
+    if reported_certainty := certainty_extension.get_certainty(event):
+        certainty_type, certainty_value = reported_certainty
+    if not (certainty_type and certainty_value and response):
         raise RuntimeError(f"Invalid response from executor {event}")
 
     print("Trivia Fact:")
     print("-" * 80)
     print(response)
     print("-" * 80)
-    print(
-        f"Confidence: {reported_certainty_type.name} ({reported_certainty * 100:.2f}%)\n"
-    )
+    print(f"Confidence: {certainty_type} ({certainty_value * 100:.2f}%)\n")
 
 
 def cli():
